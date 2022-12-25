@@ -22,8 +22,8 @@ type Process = Deno.Process<
 export type Config = {
   instant?: boolean;
   serial?: boolean;
-  silent?: boolean;
-  verbose?: boolean;
+  silent?: boolean; // TODO
+  verbose?: boolean; // TODO
   resolve: Action;
 };
 
