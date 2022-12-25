@@ -15,11 +15,11 @@ export function format() {
     ["Usage: make [options] [targets] ..."],
     ["Options:"],
     ...group([
-      ["  -h, --help", "Print this message and exit."],
-      ["  -c, --cereal", "Run all targets in serial mode."],
-      ["  -i, --instant", "Print logs from shell commands immediately."],
-      ["  -v, --verbose", "Print additional debug information."],
-      ["  -s, --silent", "Run in silent mode."],
+      ["-h, --help", "Print this message and exit."],
+      ["-c, --cereal", "Run all targets in serial mode."],
+      ["-i, --instant", "Print logs from shell commands immediately."],
+      ["-v, --verbose", "Print additional debug information."],
+      ["-s, --silent", "Run in silent mode."],
     ]),
     ...(entries.length > 0 ? ["", "Targets:"] : []),
     ...group(entries),
@@ -27,7 +27,7 @@ export function format() {
 }
 
 function group(lines: string[][]) {
-  const rulers = [20];
+  const rulers = [18];
 
   for (const line of lines) {
     line.forEach((part, i) => {
@@ -38,7 +38,7 @@ function group(lines: string[][]) {
   }
 
   return lines.map((line) =>
-    line.map((str, i) => {
+    "  " + line.map((str, i) => {
       return i < (line.length - 1)
         ? str + " ".repeat(rulers[i] - str.length)
         : str;
