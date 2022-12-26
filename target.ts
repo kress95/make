@@ -26,7 +26,7 @@ export type Config = {
 /** User defined actions. Returning false means that nothing was done. */
 export type Action = (target: Target) => ActionReturn;
 
-export type ActionReturn = void | false | Promise<void | false>;
+export type ActionReturn = void | boolean | Promise<void | boolean>;
 
 /** Contains target metadata and methods to move execution forward. */
 export class Target {
@@ -65,6 +65,12 @@ export class Target {
     target.#action = action;
   }
 
+  static abort(target: Target, error: unknown) {
+    target.#assertNotAborted();
+    target.#signal.abort(error);
+    throw error;
+  }
+
   static async execute(target: Target) {
     if (target.#action === undefined) return undefined;
     return await target.#action(target);
@@ -84,7 +90,7 @@ export class Target {
   deps: string[] = [];
 
   /** Starts job to run another targets. */
-  run: (...targets: string[]) => Promise<void | false>;
+  run: (...targets: string[]) => Promise<void | boolean>;
 
   /** Starts job to run shell commands. */
   sh: (...commands: string[][]) => Promise<void>;
@@ -134,30 +140,25 @@ export class Target {
   // shell
 
   async #runS(...targets: string[]) {
-    if (targets.length === 0) return false
+    if (targets.length === 0) return false;
 
-    let returnFalse = true;
+    let changed = false;
 
     for (const target of targets) {
-      if (await this.#run(target) !== false) returnFalse = false;
+      if (await this.#run(target) !== false) changed = true;
     }
 
-    if (returnFalse) return false;
+    return changed;
   }
 
   async #runP(...targets: string[]) {
-    if (targets.length === 0) return false
-
-    let returnFalse = true;
+    if (targets.length === 0) return false;
 
     for (const result of await Promise.all(targets.map(this.#run))) {
-      if (result !== false) {
-        returnFalse = false;
-        break;
-      }
+      if (result !== false) return true;
     }
 
-    if (returnFalse) return false;
+    return false;
   }
 
   #run = async (target: string) => {

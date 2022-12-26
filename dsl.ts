@@ -92,7 +92,7 @@ export async function run(groups: string[][], config: Config) {
       ),
     );
   } catch (error) {
-    root.abort(error);
+    Target.abort(root, error);
   }
 }
 
@@ -129,7 +129,7 @@ export async function cli(args: string[] = Deno.args, config?: Config) {
     if (!(error instanceof TargetError)) throw error;
     const targetError = error.error;
     if (!(targetError instanceof ReportError)) throw targetError;
-    error.target.critical(targetError.report);
+    error.target.critical("error:", targetError.report);
     return false;
   } finally {
     await diff.save();
