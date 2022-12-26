@@ -134,6 +134,8 @@ export class Target {
   // shell
 
   async #runS(...targets: string[]) {
+    if (targets.length === 0) return false
+
     let returnFalse = true;
 
     for (const target of targets) {
@@ -144,6 +146,8 @@ export class Target {
   }
 
   async #runP(...targets: string[]) {
+    if (targets.length === 0) return false
+
     let returnFalse = true;
 
     for (const result of await Promise.all(targets.map(this.#run))) {

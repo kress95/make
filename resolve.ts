@@ -3,7 +3,7 @@ import { compose } from "./middleware.ts";
 import { expand } from "./expand.ts";
 import { format } from "./format.ts";
 import { TargetError } from "./target_error.ts";
-import { lstat } from "./util.ts";
+import { exists, lstat } from "./util.ts";
 import * as diff from "./diff.ts";
 import * as rules from "./rules.ts";
 import * as tasks from "./tasks.ts";
@@ -19,11 +19,11 @@ export const resolve = compose(
   expandTarget,
   resolveTarget,
   formatDeps,
-  executeDeps,
+  skipCheck,
   stopwatch,
   errors,
   execute,
-  performDiff,
+  checkRule,
 );
 
 export async function expandTarget(target: Target, next: Action) {
@@ -56,22 +56,14 @@ export async function formatDeps(target: Target, next: Action) {
   return await next(target);
 }
 
-export async function executeDeps(target: Target, next: Action) {
-  if (target.deps.length > 0) {
-    const deps = await target.run(...target.deps);
+export async function skipCheck(target: Target, next: Action) {
+  const forceUpdate = tasks.is(target.name) || !(await exists(target.name));
+  const ranAnyDeps = (await target.run(...target.deps)) !== false;
 
-    // skip if not a task and no tasks ran
-    if (!tasks.is(target.name) && deps === false) return false;
+  await Promise.all(target.deps.map(diff.update));
 
-    const result = await next(target);
-
-    // update all deps in cache
-    await Promise.all(target.deps.map(diff.update));
-
-    return result;
-  }
-
-  return await next(target);
+  if (ranAnyDeps || forceUpdate) return await next(target);
+  return false;
 }
 
 export async function stopwatch(target: Target, next: Action) {
@@ -112,7 +104,7 @@ export async function execute(target: Target, next: Action) {
   return await Target.execute(target);
 }
 
-export async function performDiff(target: Target) {
+export async function checkRule(target: Target) {
   const mtime = (await lstat(target.name))?.mtime?.valueOf();
   if (mtime === undefined) throw new TargetNotFoundError(target.name);
   if (diff.unchanged(target.name, mtime)) return false;
