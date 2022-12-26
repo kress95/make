@@ -1,6 +1,5 @@
 import { resolve } from "./resolve.ts";
 import { Action, Config, Target } from "./target.ts";
-import { noopAsync } from "./util.ts";
 import { ReportError, TargetNotFoundError } from "./report_error.ts";
 import { TargetError } from "./target_error.ts";
 import * as diff from "./diff.ts";
@@ -71,6 +70,10 @@ export function rule(
     : actionOrPrereqs;
 
   rules.add(pattern, prereqs, action);
+}
+
+function noopAsync() {
+  return Promise.resolve();
 }
 
 /** Run parallel groups of serial tasks. */

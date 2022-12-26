@@ -15,9 +15,6 @@ export async function lstat(
   }
 }
 
-export async function noopAsync(_arg: unknown) {
-}
-
 /** Makes directory recursively, doesn't throw if directory already exists. */
 export async function mkdirp(dirPath: string) {
   try {
