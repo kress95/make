@@ -58,11 +58,17 @@ export async function formatDeps(target: Target, next: Action) {
 }
 
 export async function executeDeps(target: Target, next: Action) {
-  const ran = await target.run(...target.deps);
-  console.log("ran", ran)
-  const result = await next(target);
-  for (const entry of target.deps) diff.update(entry);
-  return result;
+  if (target.deps.length > 0) {
+    const deps = await target.run(...target.deps);
+    if (deps === false && !tasks.is(target.name)) return false;
+
+    const result = await next(target);
+    await Promise.all(target.deps.map(diff.update));
+
+    return result;
+  }
+
+  return await next(target);
 }
 
 export async function stopwatch(target: Target, next: Action) {
@@ -99,9 +105,8 @@ export async function errors(target: Target, next: Action) {
 }
 
 export async function execute(target: Target, next: Action) {
-  const result = await Target.execute(target);
-  if (result !== undefined) return result;
-  return await next(target);
+  if (Target.unresolved(target)) return await next(target);
+  return await Target.execute(target);
 }
 
 export async function performDiff(target: Target) {
@@ -110,38 +115,3 @@ export async function performDiff(target: Target) {
   if (diff.unchanged(target.name, mtime)) return false;
   target.info("changed:");
 }
-
-//
-//
-
-// export async function targetResolve(target: Target, next: Action) {
-//   const resolved = tasks.get(target.name) ?? rules.find(target.name);
-//   if (resolved !== undefined) Target.resolve(target, resolved);
-//   return await next(target);
-// }
-
-// export async function executeDeps(target: Target, next: Action) {
-// const result = await target.run(...target.deps)
-// await target.run(...target.deps);
-//   if (target.task) return await next(target);
-//   if (await diff.needsUpdate(target.name)) {
-//     await next(target);
-//     await diff.update(target.name);
-//   }
-// }
-// static resolve(target: Target, { task, prereqs, action }: Resolved) {
-//   if (target.#action !== undefined) {
-//     throw new Error("cannot resolve already resolved targets");
-//   }
-//   target.task = task;
-//   for (const item of prereqs) target.deps.push(item);
-//   target.#action = action;
-// }
-// static async execute(target: Target) {
-//   if (target.#action === undefined) {
-//     throw new TargetNotFoundError(target.name);
-//   }
-//   return await target.#action(target);
-// }
-
-// targetResolve,

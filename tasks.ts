@@ -21,3 +21,7 @@ function isValid(name: string) {
 export function get(name: string) {
   return tasks.get(name);
 }
+
+export function is(name: string) {
+  return tasks.has(name);
+}

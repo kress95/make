@@ -1,10 +1,6 @@
 import { Buffer, log } from "./deps.ts";
 import { format } from "./expand.ts";
-import {
-  ReportError,
-  ShellCommandError,
-  TargetNotFoundError,
-} from "./report_error.ts";
+import { ReportError, ShellCommandError } from "./report_error.ts";
 import { TargetError } from "./target_error.ts";
 import * as jobs from "./jobs.ts";
 import * as style from "./style.ts";
@@ -27,14 +23,10 @@ export type Config = {
   resolve: Action;
 };
 
-/** User defined actions. */
+/** User defined actions. Returning false means that nothing was done. */
 export type Action = (target: Target) => ActionReturn;
 
-export type ActionReturn =
-  | void
-  | undefined
-  | boolean
-  | Promise<void | undefined | boolean>;
+export type ActionReturn = void | false | Promise<void | false>;
 
 /** Contains target metadata and methods to move execution forward. */
 export class Target {
@@ -75,7 +67,7 @@ export class Target {
 
   static async execute(target: Target) {
     if (target.#action === undefined) return undefined;
-    return await target.#action(target) ?? true;
+    return await target.#action(target);
   }
 
   #config: Config;
@@ -92,7 +84,7 @@ export class Target {
   deps: string[] = [];
 
   /** Starts job to run another targets. */
-  run: (...targets: string[]) => Promise<void | boolean>;
+  run: (...targets: string[]) => Promise<void | false>;
 
   /** Starts job to run shell commands. */
   sh: (...commands: string[][]) => Promise<void>;
@@ -142,20 +134,26 @@ export class Target {
   // shell
 
   async #runS(...targets: string[]) {
-    let performed = undefined;
+    let performed = false;
 
     for (const target of targets) {
-      if (await this.#run(target) === true) performed = true;
+      if (await this.#run(target) !== false) performed = true;
     }
 
-    return performed;
+    if (!performed) return false;
   }
 
   async #runP(...targets: string[]) {
+    let performed = false;
+
     for (const result of await Promise.all(targets.map(this.#run))) {
-      if (result === true) return true;
+      if (result !== false) {
+        performed = true;
+        break;
+      }
     }
-    return undefined;
+
+    if (!performed) return false;
   }
 
   #run = async (target: string) => {
