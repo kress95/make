@@ -56,7 +56,7 @@ export function task(
 
 /** Define file rule. */
 export function rule(pattern: string, action: Action): void;
-export function rule(pattern: string, prereqs: string[], action: Action): void;
+export function rule(pattern: string, prereqs: string[], action?: Action): void;
 export function rule(
   pattern: string,
   actionOrPrereqs: Action | string[],

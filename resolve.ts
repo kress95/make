@@ -20,7 +20,6 @@ export const resolve = compose(
   resolveTarget,
   formatDeps,
   executeDeps,
-  // executeDeps,
   stopwatch,
   errors,
   execute,
@@ -35,7 +34,7 @@ export async function expandTarget(target: Target, next: Action) {
     return await next(target);
   }
 
-  await target.run(...expanded);
+  return await target.run(...expanded);
 }
 
 export async function resolveTarget(target: Target, next: Action) {
@@ -54,15 +53,19 @@ export async function formatDeps(target: Target, next: Action) {
     target.deps[i] = format(target.deps[i], target.name);
   }
 
-  await next(target);
+  return await next(target);
 }
 
 export async function executeDeps(target: Target, next: Action) {
   if (target.deps.length > 0) {
     const deps = await target.run(...target.deps);
-    if (deps === false && !tasks.is(target.name)) return false;
+
+    // skip if not a task and no tasks ran
+    if (!tasks.is(target.name) && deps === false) return false;
 
     const result = await next(target);
+
+    // update all deps in cache
     await Promise.all(target.deps.map(diff.update));
 
     return result;

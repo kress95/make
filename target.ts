@@ -134,26 +134,26 @@ export class Target {
   // shell
 
   async #runS(...targets: string[]) {
-    let performed = false;
+    let returnFalse = true;
 
     for (const target of targets) {
-      if (await this.#run(target) !== false) performed = true;
+      if (await this.#run(target) !== false) returnFalse = false;
     }
 
-    if (!performed) return false;
+    if (returnFalse) return false;
   }
 
   async #runP(...targets: string[]) {
-    let performed = false;
+    let returnFalse = true;
 
     for (const result of await Promise.all(targets.map(this.#run))) {
       if (result !== false) {
-        performed = true;
+        returnFalse = false;
         break;
       }
     }
 
-    if (!performed) return false;
+    if (returnFalse) return false;
   }
 
   #run = async (target: string) => {
