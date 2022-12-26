@@ -19,9 +19,8 @@ export function save() {
   );
 }
 
-export async function needsUpdate(filePath: string): Promise<boolean> {
-  const mtime = (await lstat(filePath))?.mtime?.valueOf() ?? Infinity;
-  return mtime > (diff.get(filePath) ?? 0);
+export function unchanged(filePath: string, mtime: number) {
+  return (diff.get(filePath) ?? 0) > mtime;
 }
 
 export async function update(filePath: string) {

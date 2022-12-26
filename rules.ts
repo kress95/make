@@ -1,6 +1,7 @@
 import { format } from "./expand.ts";
 import { globToRegExp, isGlob } from "./deps.ts";
-import type { Action, Resolved } from "./target.ts";
+import type { Action } from "./target.ts";
+import type { Resolved } from "./resolve.ts";
 
 const rulesByPath = new Map<string, Resolved>();
 const rulesByPattern: { pattern: RegExp; rule: Resolved }[] = [];

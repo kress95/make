@@ -1,5 +1,6 @@
 import { isGlob } from "./deps.ts";
-import type { Action, Resolved } from "./target.ts";
+import type { Action } from "./target.ts";
+import type { Resolved } from "./resolve.ts";
 
 const tasks = new Map<string, Resolved>();
 
