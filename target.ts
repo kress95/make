@@ -28,13 +28,13 @@ export type Config = {
 };
 
 /** User defined actions. */
-export type Action = (target: Target) => void | Promise<void>;
+export type Action = (target: Target) => ActionReturn;
 
-export type Resolved = {
-  task: boolean;
-  prereqs: string[];
-  action: Action;
-};
+export type ActionReturn =
+  | void
+  | undefined
+  | boolean
+  | Promise<void | undefined | boolean>;
 
 /** Contains target metadata and methods to move execution forward. */
 export class Target {
@@ -61,23 +61,21 @@ export class Target {
     return target;
   }
 
-  static resolve(target: Target, { task, prereqs, action }: Resolved) {
+  static unresolved(target: Target) {
+    return target.#action === undefined;
+  }
+
+  static resolve(target: Target, action: Action) {
     if (target.#action !== undefined) {
       throw new Error("cannot resolve already resolved targets");
     }
 
-    target.task = task;
-    for (const item of prereqs) target.deps.push(item);
     target.#action = action;
   }
 
   static async execute(target: Target) {
-    if (target.#action === undefined) {
-      throw new TargetNotFoundError(target.name);
-    }
-
-    await target.run(...target.deps);
-    await target.#action(target);
+    if (target.#action === undefined) return undefined;
+    return await target.#action(target) ?? true;
   }
 
   #config: Config;
@@ -87,9 +85,6 @@ export class Target {
   #pipe: (proc: Process) => Promise<string> | Promise<void>;
   #jobs = 0;
 
-  /**  Is a task or a rule? */
-  task = true;
-
   /** Target name */
   name: string;
 
@@ -97,7 +92,7 @@ export class Target {
   deps: string[] = [];
 
   /** Starts job to run another targets. */
-  run: (...targets: string[]) => Promise<void>;
+  run: (...targets: string[]) => Promise<void | boolean>;
 
   /** Starts job to run shell commands. */
   sh: (...commands: string[][]) => Promise<void>;
@@ -147,18 +142,27 @@ export class Target {
   // shell
 
   async #runS(...targets: string[]) {
-    for (const target of targets) await this.#run(target);
+    let performed = undefined;
+
+    for (const target of targets) {
+      if (await this.#run(target) === true) performed = true;
+    }
+
+    return performed;
   }
 
   async #runP(...targets: string[]) {
-    await Promise.all(targets.map(this.#run));
+    for (const result of await Promise.all(targets.map(this.#run))) {
+      if (result === true) return true;
+    }
+    return undefined;
   }
 
   #run = async (target: string) => {
     this.#assertNotAborted();
     try {
       this.#startJob();
-      await this.#config.resolve(Target.from(this, target));
+      return await this.#config.resolve(Target.from(this, target));
     } finally {
       this.#finishJob();
     }
@@ -255,8 +259,6 @@ export class Target {
   }
 }
 
-export const execute = Target.execute;
-
 const decoder = new TextDecoder();
 
 async function pipeBuffer(proc: Process) {
@@ -275,4 +277,6 @@ async function pipeInstant(proc: Process) {
     proc.stdout.readable.pipeTo(Deno.stdout.writable),
     proc.stderr.readable.pipeTo(Deno.stderr.writable),
   ]);
+
+  return undefined;
 }
