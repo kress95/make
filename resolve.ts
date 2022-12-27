@@ -67,7 +67,7 @@ export async function skipCheck(target: Target, next: Action) {
 }
 
 export async function stopwatch(target: Target, next: Action) {
-  if (resolved.has(target.name)) return await next(target);
+  if (!resolved.has(target.name)) return await next(target);
 
   const startedAt = timestamp();
   try {
@@ -107,7 +107,7 @@ export async function execute(target: Target, next: Action) {
 
 export async function checkRule(target: Target) {
   const mtime = (await lstat(target.name))?.mtime?.valueOf();
-  if (mtime === undefined) throw new TargetNotFoundError(target.name);
+  if (mtime === undefined) throw new TargetNotFoundError();
   if (diff.unchanged(target.name, mtime)) return false;
   target.info("changed:");
 }
