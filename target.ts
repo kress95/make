@@ -18,8 +18,8 @@ type Process = Deno.Process<
 export type Config = {
   instant?: boolean;
   serial?: boolean;
-  silent?: boolean; // TODO
-  verbose?: boolean; // TODO
+  silent?: boolean;
+  verbose?: boolean;
   resolve: Action;
 };
 
@@ -57,6 +57,10 @@ export class Target {
     target.#assertNotAborted();
     target.#signal.abort(error);
     throw error;
+  }
+
+  static debug(target: Target, message: string, ...args: unknown[]) {
+    target.#debug(message, ...args);
   }
 
   #config: Config;
@@ -210,6 +214,10 @@ export class Target {
       this.#finishJob();
       this.#signal.signal.removeEventListener("abort", handleAbort);
     }
+  }
+
+  #debug(message: string, ...args: unknown[]) {
+    this.#log("debug", message, args, "make");
   }
 
   #info(message: string, ...args: unknown[]) {
