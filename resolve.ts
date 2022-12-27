@@ -7,7 +7,6 @@ import { exists, lstat } from "./util.ts";
 import * as diff from "./diff.ts";
 import * as rules from "./rules.ts";
 import * as tasks from "./tasks.ts";
-import { TargetNotFoundError } from "./report_error.ts";
 
 export type Resolved = {
   task: boolean;
@@ -105,9 +104,9 @@ export async function execute(target: Target, next: Action) {
   return await action(target);
 }
 
-export async function checkRule(target: Target) {
+export async function checkRule(target: Target, next: Action) {
   const mtime = (await lstat(target.name))?.mtime?.valueOf();
-  if (mtime === undefined) throw new TargetNotFoundError();
+  if (mtime === undefined) return await next(target);
   if (diff.unchanged(target.name, mtime)) return false;
   target.info("changed:");
 }
