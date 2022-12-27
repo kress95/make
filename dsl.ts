@@ -148,7 +148,7 @@ function fallback(groups: string[][]) {
 function validate(groups: string[][]) {
   for (const group of groups) {
     for (const target of group) {
-      if (!help.has(target)) throw new TargetNotFoundError(target);
+      if (!help.has(target)) throw new TargetNotFoundError();
     }
   }
 }
