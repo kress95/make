@@ -53,33 +53,15 @@ export class Target {
     return target;
   }
 
-  static unresolved(target: Target) {
-    return target.#action === undefined;
-  }
-
-  static resolve(target: Target, action: Action) {
-    if (target.#action !== undefined) {
-      throw new Error("cannot resolve already resolved targets");
-    }
-
-    target.#action = action;
-  }
-
   static abort(target: Target, error: unknown) {
     target.#assertNotAborted();
     target.#signal.abort(error);
     throw error;
   }
 
-  static async execute(target: Target) {
-    if (target.#action === undefined) return undefined;
-    return await target.#action(target);
-  }
-
   #config: Config;
   #signal: AbortController = new AbortController();
   #prefix: string;
-  #action: Action | undefined;
   #pipe: (proc: Process) => Promise<string> | Promise<void>;
   #jobs = 0;
 

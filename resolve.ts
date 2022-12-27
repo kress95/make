@@ -18,7 +18,6 @@ export type Resolved = {
 export const resolve = compose(
   expandTarget,
   resolveTarget,
-  formatDeps,
   skipCheck,
   stopwatch,
   errors,
@@ -37,20 +36,21 @@ export async function expandTarget(target: Target, next: Action) {
   return await target.run(...expanded);
 }
 
-export async function resolveTarget(target: Target, next: Action) {
-  const resolved = tasks.get(target.name) ?? rules.find(target.name);
+const resolved = new Map<string, Action>();
 
-  if (resolved !== undefined) {
-    for (const item of resolved.prereqs) target.deps.push(item);
-    Target.resolve(target, resolved.action);
+export async function resolveTarget(target: Target, next: Action) {
+  if (resolved.has(target.name)) {
+    throw new Error("cannot resolve already resolved targets");
   }
 
-  return await next(target);
-}
+  const found = tasks.get(target.name) ?? rules.find(target.name);
 
-export async function formatDeps(target: Target, next: Action) {
-  for (let i = 0; i < target.deps.length; i++) {
-    target.deps[i] = format(target.deps[i], target.name);
+  if (found !== undefined) {
+    resolved.set(target.name, found.action);
+
+    for (const item of found.prereqs) {
+      target.deps.push(format(item, target.name));
+    }
   }
 
   return await next(target);
@@ -67,7 +67,7 @@ export async function skipCheck(target: Target, next: Action) {
 }
 
 export async function stopwatch(target: Target, next: Action) {
-  if (Target.unresolved(target)) return await next(target);
+  if (resolved.has(target.name)) return await next(target);
 
   const startedAt = timestamp();
   try {
@@ -100,8 +100,9 @@ export async function errors(target: Target, next: Action) {
 }
 
 export async function execute(target: Target, next: Action) {
-  if (Target.unresolved(target)) return await next(target);
-  return await Target.execute(target);
+  const action = resolved.get(target.name);
+  if (action === undefined) return await next(target);
+  return await action(target);
 }
 
 export async function checkRule(target: Target) {
