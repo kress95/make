@@ -12,7 +12,7 @@ export class ReportError extends Error {
 }
 
 export class TargetNotFoundError extends ReportError {
-  constructor(target: string) {
+  constructor() {
     super(`cannot resolve target`);
     this.name = "TargetNotFoundError";
   }
