@@ -10,10 +10,6 @@ const errorString = style.error("error");
 const outputFromString = style.caption("output from");
 const abortString = style.em("abort");
 
-type Process = Deno.Process<
-  { cmd: string[]; stdout: "piped"; stderr: "piped" }
->;
-
 /** Target configuration. */
 export type Config = {
   instant?: boolean;
@@ -66,7 +62,6 @@ export class Target {
   #config: Config;
   #signal: AbortController = new AbortController();
   #prefix: string;
-  #pipe: (proc: Process) => Promise<string> | Promise<void>;
   #jobs = 0;
 
   /** Target name */
@@ -84,7 +79,6 @@ export class Target {
   constructor(name: string, config: Config) {
     this.#config = config;
     this.#prefix = style.subtitle(name);
-    this.#pipe = config.instant === true ? pipeInstant : pipeBuffer;
     this.name = name;
     this.run = config.serial === true ? this.#runS : this.#runP;
     this.sh = config.serial === true ? this.#shS : this.#shP;
@@ -188,14 +182,14 @@ export class Target {
   async #spawn(cmd: string[], fmt: string) {
     this.#assertNotAborted();
 
-    const proc = Deno.run({ cmd, stdout: "piped", stderr: "piped" });
+    const mode = (this.#config.instant) ? "inherit" as const : "piped" as const;
+
+    const proc = Deno.run({ cmd, stdout: mode, stderr: mode });
 
     const handleAbort = () => {
       this.#info("sh:", abortString, fmt);
       proc.kill();
     };
-
-    proc.stderr.readable;
 
     this.#signal.signal.addEventListener("abort", handleAbort);
 
@@ -203,7 +197,7 @@ export class Target {
 
     try {
       const [logs, { code }] = await Promise.all([
-        this.#pipe(proc),
+        mode === "piped" ? pipeBuffer(proc) : undefined,
         proc.status(),
       ]);
 
@@ -254,7 +248,11 @@ export class Target {
 
 const decoder = new TextDecoder();
 
-async function pipeBuffer(proc: Process) {
+async function pipeBuffer(
+  proc: Deno.Process<
+    { cmd: string[]; stdout: "piped"; stderr: "piped" }
+  >,
+) {
   const buffer = new Buffer();
 
   await Promise.all([
@@ -263,13 +261,4 @@ async function pipeBuffer(proc: Process) {
   ]);
 
   return decoder.decode(buffer.bytes());
-}
-
-async function pipeInstant(proc: Process) {
-  await Promise.all([
-    proc.stdout.readable.pipeTo(Deno.stdout.writable),
-    proc.stderr.readable.pipeTo(Deno.stderr.writable),
-  ]);
-
-  return undefined;
 }

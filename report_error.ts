@@ -18,6 +18,13 @@ export class TargetNotFoundError extends ReportError {
   }
 }
 
+export class CliTargetNotFoundError extends ReportError {
+  constructor(name: string) {
+    super(`cannot resolve target ${quote(name)}`);
+    this.name = "CliTargetNotFoundError";
+  }
+}
+
 export class ShellCommandError extends ReportError {
   constructor(command: string, code?: number) {
     super(`command ${quote(command)} returned ${formatErrorCode(code)}`);

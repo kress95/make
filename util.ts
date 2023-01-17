@@ -3,6 +3,11 @@ export async function exists(filePath: string) {
   return (await lstat(filePath)) !== undefined;
 }
 
+/** Fetches file modification time, returns undefined if file is not found. */
+export async function mtime(filePath: string): Promise<number | undefined> {
+  return (await lstat(filePath))?.mtime?.valueOf();
+}
+
 /** Fetches file info, returns undefined if file is not found. */
 export async function lstat(
   filePath: string,

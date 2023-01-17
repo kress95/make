@@ -3,7 +3,7 @@ import { compose } from "./middleware.ts";
 import { expand } from "./expand.ts";
 import { format } from "./format.ts";
 import { TargetError } from "./target_error.ts";
-import { exists, lstat } from "./util.ts";
+import { exists, mtime } from "./util.ts";
 import * as diff from "./diff.ts";
 import * as style from "./style.ts";
 import * as rules from "./rules.ts";
@@ -67,14 +67,29 @@ export async function resolveTarget(target: Target, next: Action) {
 }
 
 export async function skipCheck(target: Target, next: Action) {
-  const forceUpdate = tasks.is(target.name) || !(await exists(target.name));
+  const isTask = tasks.is(target.name);
+  const forceUpdate = isTask || !(await exists(target.name));
   const ranAnyDeps = (await target.run(...target.deps)) !== false;
 
   await Promise.all(target.deps.map(diff.update));
 
-  if (ranAnyDeps || forceUpdate) return await next(target);
-  Target.debug(target, "skip:");
-  return false;
+  if (!(ranAnyDeps || forceUpdate) && !isTask) {
+    if (
+      diff.unchanged(
+        target.name,
+        (await mtime(target.name)) ?? 0,
+      )
+    ) {
+      Target.debug(target, "skip:");
+      return false;
+    }
+
+    const result = await next(target);
+    diff.update(target.name);
+    return result;
+  } else {
+    return await next(target);
+  }
 }
 
 export async function stopwatch(target: Target, next: Action) {
@@ -112,23 +127,19 @@ export async function errors(target: Target, next: Action) {
 
 export async function execute(target: Target, next: Action) {
   const action = resolved.get(target.name);
+
   if (action === undefined) return await next(target);
   Target.debug(target, "running:");
   return await action(target);
 }
 
 export async function checkRule(target: Target, next: Action) {
-  const mtime = (await lstat(target.name))?.mtime?.valueOf();
+  const time = await mtime(target.name);
 
-  if (mtime === undefined) {
+  if (time === undefined) {
     Target.debug(target, "unknown:");
     return await next(target);
   }
 
-  if (diff.unchanged(target.name, mtime)) {
-    Target.debug(target, "unchanged:");
-    return false;
-  }
-
-  target.info("changed:");
+  return !diff.unchanged(target.name, time)
 }

@@ -1,9 +1,9 @@
 import {
   BaseHandler,
-  bgRed,
   bgWhite,
   black,
   bold,
+  brightRed,
   log,
   red,
   white,
@@ -60,7 +60,7 @@ function formatTopic(msg: string, level: number) {
 }
 
 function critical(msg: string) {
-  return bgRed(black(msg));
+  return bold(brightRed(msg));
 }
 
 function error(msg: string) {

@@ -1,6 +1,6 @@
 import { resolve } from "./resolve.ts";
 import { Action, Config, Target } from "./target.ts";
-import { ReportError, TargetNotFoundError } from "./report_error.ts";
+import { CliTargetNotFoundError, ReportError } from "./report_error.ts";
 import { TargetError } from "./target_error.ts";
 import * as diff from "./diff.ts";
 import * as help from "./help.ts";
@@ -97,7 +97,10 @@ export async function run(groups: string[][], config: Config) {
 }
 
 /** Run default cli. */
-export async function cli(args: string[] = Deno.args, config?: Config) {
+export async function cli(
+  args: string[] = Deno.args,
+  config?: Partial<Config>,
+) {
   if (args.includes("--help") || args.includes("-h")) {
     return console.log(help.format());
   }
@@ -126,10 +129,11 @@ export async function cli(args: string[] = Deno.args, config?: Config) {
       ...(config ?? {}),
     });
   } catch (error) {
-    if (!(error instanceof TargetError)) throw error;
-    const targetError = error.error;
-    if (!(targetError instanceof ReportError)) throw targetError;
-    error.target.critical("error:", targetError.report);
+    const targetError = error instanceof TargetError ? error : undefined;
+    const actualError = targetError?.error ?? error;
+    const log = targetError?.target ?? logger.get();
+    if (!(actualError instanceof ReportError)) throw actualError;
+    log.critical("error:", actualError.report);
     return false;
   } finally {
     await diff.save();
@@ -148,7 +152,7 @@ function fallback(groups: string[][]) {
 function validate(groups: string[][]) {
   for (const group of groups) {
     for (const target of group) {
-      if (!help.has(target)) throw new TargetNotFoundError();
+      if (!help.has(target)) throw new CliTargetNotFoundError(target);
     }
   }
 }

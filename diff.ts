@@ -1,4 +1,4 @@
-import { exists, lstat } from "./util.ts";
+import { exists, mtime } from "./util.ts";
 
 const filePath = ".make";
 
@@ -20,13 +20,13 @@ export function save() {
 }
 
 export function unchanged(filePath: string, mtime: number) {
-  return (diff.get(filePath) ?? 0) > mtime;
+  return (diff.get(filePath) ?? 0) >= mtime;
 }
 
 export async function update(filePath: string) {
-  const mtime = (await lstat(filePath))?.mtime?.valueOf();
-  if (mtime !== undefined) {
-    diff.set(filePath, mtime);
+  const time = await mtime(filePath);
+  if (time !== undefined) {
+    diff.set(filePath, time);
   } else {
     diff.delete(filePath);
   }
