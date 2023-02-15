@@ -1,4 +1,5 @@
-import { globToRegExp, isGlob, normalize, walk } from "./deps.ts";
+import { isGlob, normalize } from "./deps.ts";
+import { glob } from "./util.ts";
 
 const expanded = new Map<string, string[]>();
 
@@ -7,7 +8,7 @@ export async function expand(name: string) {
   const cached = expanded.get(pattern);
   if (cached !== undefined) return cached;
 
-  const listed = await list(pattern);
+  const listed = await glob(pattern);
   expanded.set(pattern, listed);
 
   return listed;
@@ -15,17 +16,4 @@ export async function expand(name: string) {
 
 export function format(name: string) {
   return isGlob(name) ? name : normalize(name);
-}
-
-async function list(pattern: string) {
-  if (!isGlob(pattern)) return [pattern];
-
-  const match = [globToRegExp(pattern)];
-  const entries: string[] = [];
-
-  for await (const entry of walk(".", { match })) {
-    entries.push(entry.path);
-  }
-
-  return entries;
 }

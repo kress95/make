@@ -1,11 +1,11 @@
 import { Action, Target } from "./target.ts";
 import { compose } from "./middleware.ts";
+import { exists, mtime } from "./util.ts";
 import { expand } from "./expand.ts";
 import { format } from "./format.ts";
+import { globToRegExp } from "./deps.ts";
 import { TargetError } from "./target_error.ts";
-import { exists, mtime } from "./util.ts";
 import * as diff from "./diff.ts";
-import * as style from "./style.ts";
 import * as rules from "./rules.ts";
 import * as tasks from "./tasks.ts";
 
@@ -16,31 +16,14 @@ export type Resolved = {
 };
 
 export const resolve = compose(
-  expandTarget,
   resolveTarget,
+  expandDeps,
   skipCheck,
   stopwatch,
   errors,
   execute,
   checkRule,
 );
-
-const toString = style.em("to");
-
-export async function expandTarget(target: Target, next: Action) {
-  const expanded = await expand(target.name);
-
-  Target.debug(target, "expand:", toString, expanded);
-
-  if (expanded.length < 2) {
-    if (expanded.length === 1) target.name = expanded[0];
-    return await next(target);
-  }
-
-  Target.debug(target, "fork:", toString);
-
-  return await target.run(...expanded);
-}
 
 const resolved = new Map<string, Action>();
 
@@ -62,6 +45,54 @@ export async function resolveTarget(target: Target, next: Action) {
   } else {
     Target.debug(target, "unresolved:");
   }
+
+  return await next(target);
+}
+
+export async function expandDeps(target: Target, next: Action) {
+  const deps: string[] = [];
+  const rulesToKeep = new Set<string>();
+  const tasksToKeep = new Set<string>();
+
+  const include = async (pattern: string) => {
+    if (tasks.is(pattern)) {
+      if (tasksToKeep.has(pattern)) return;
+      deps.push(pattern);
+      tasksToKeep.add(pattern);
+      return;
+    }
+
+    for (const rule of await expand(pattern)) {
+      if (rulesToKeep.has(rule)) continue;
+      deps.push(rule);
+      rulesToKeep.add(rule);
+    }
+  };
+
+  const exclude = (pattern: string) => {
+    if (tasks.is(pattern)) {
+      tasksToKeep.delete(pattern);
+      return;
+    }
+
+    const regexp = globToRegExp(pattern);
+
+    for (const rule of rulesToKeep) {
+      if (regexp.test(rule)) rulesToKeep.delete(rule);
+    }
+  };
+
+  for (const pattern of target.deps) {
+    if (pattern.startsWith("!")) {
+      exclude(pattern.substring(1, pattern.length));
+    } else {
+      await include(pattern);
+    }
+  }
+
+  target.deps = deps.filter((str) =>
+    tasks.is(str) ? tasksToKeep.has(str) : rulesToKeep.has(str)
+  );
 
   return await next(target);
 }
@@ -141,5 +172,5 @@ export async function checkRule(target: Target, next: Action) {
     return await next(target);
   }
 
-  return !diff.unchanged(target.name, time)
+  return !diff.unchanged(target.name, time);
 }

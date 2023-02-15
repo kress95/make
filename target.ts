@@ -1,5 +1,4 @@
 import { Buffer, log } from "./deps.ts";
-import { format } from "./expand.ts";
 import { ReportError, ShellCommandError } from "./report_error.ts";
 import { TargetError } from "./target_error.ts";
 import * as jobs from "./jobs.ts";
@@ -32,8 +31,7 @@ export class Target {
 
   static readonly #storage = new Map<string, Target>();
 
-  static from(from: Target, pattern: string) {
-    const name = format(pattern);
+  static from(from: Target, name: string) {
     const existing = Target.#storage.get(name);
     const target = existing ?? new Target(name, from.#config);
 

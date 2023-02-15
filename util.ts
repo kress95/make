@@ -1,3 +1,5 @@
+import { globToRegExp, isGlob, walk } from "./deps.ts";
+
 /** Checks if file exist. */
 export async function exists(filePath: string) {
   return (await lstat(filePath)) !== undefined;
@@ -29,4 +31,22 @@ export async function mkdirp(dirPath: string) {
     if (stat && stat.isDirectory) return;
     throw error;
   }
+}
+
+/** List all file/directory entries that match pattern. */
+export async function glob(pattern: string) {
+  return await list(pattern);
+}
+
+async function list(pattern: string) {
+  if (!isGlob(pattern)) return [pattern];
+
+  const match = [globToRegExp(pattern)];
+  const entries: string[] = [];
+
+  for await (const entry of walk(".", { match })) {
+    entries.push(entry.path);
+  }
+
+  return entries;
 }
