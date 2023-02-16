@@ -43,6 +43,35 @@ export function setup(verbose: boolean) {
   });
 }
 
+export class Logger {
+  #prefix: string;
+
+  constructor(prefix: string) {
+    this.#prefix = prefix;
+  }
+
+  debug(message: string, ...args: unknown[]) {
+    this.log("debug", message, args, "make");
+  }
+
+  info(message: string, ...args: unknown[]) {
+    this.log("info", message, args, "make");
+  }
+
+  error(message: string, ...args: unknown[]) {
+    this.log("info", message, args, "make");
+  }
+
+  log(
+    type: "debug" | "info" | "warning" | "error" | "critical",
+    message: string,
+    data: unknown[],
+    kind = "make:task",
+  ) {
+    return log.getLogger(kind)[type](message, this.#prefix, ...data);
+  }
+}
+
 function formatter(record: log.LogRecord): string {
   const args = record.args.filter((str) => str !== "");
   const msg = formatTopic(record.msg, record.level);

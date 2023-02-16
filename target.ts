@@ -1,12 +1,12 @@
-import { Buffer, log } from "./deps.ts";
-import { ReportError, ShellCommandError } from "./report_error.ts";
+import { Buffer } from "./deps.ts";
+import { ReportError } from "./report_error.ts";
 import { TargetError } from "./target_error.ts";
 import * as jobs from "./jobs.ts";
 import * as style from "./style.ts";
+import { Logger } from "./logger.ts";
+import * as shell from "./shell.ts";
+import * as run from "./run.ts";
 
-const successString = style.ok("success");
-const errorString = style.error("error");
-const outputFromString = style.caption("output from");
 const abortString = style.em("abort");
 
 /** Target configuration. */
@@ -54,12 +54,14 @@ export class Target {
   }
 
   static debug(target: Target, message: string, ...args: unknown[]) {
-    target.#debug(message, ...args);
+    target.#logger.debug(message, ...args);
   }
 
   #config: Config;
   #signal: AbortController = new AbortController();
   #prefix: string;
+  #logger: Logger;
+
   #jobs = 0;
 
   /** Target name */
@@ -77,9 +79,10 @@ export class Target {
   constructor(name: string, config: Config) {
     this.#config = config;
     this.#prefix = style.subtitle(name);
+    this.#logger = new Logger(this.#prefix);
     this.name = name;
-    this.run = config.serial === true ? this.#runS : this.#runP;
-    this.sh = config.serial === true ? this.#shS : this.#shP;
+    this.run = run.create(this.#run, config.serial);
+    this.sh = shell.create(this.#spawn, this.#logger, config.serial);
   }
 
   /** Abort this target and all jobs started from it. */
@@ -92,51 +95,27 @@ export class Target {
 
   /** Logs debug messages. */
   debug(message: string, ...args: unknown[]) {
-    this.#log("debug", message, args);
+    this.#logger.log("debug", message, args);
   }
 
   /** Logs info messages. */
   info(message: string, ...args: unknown[]) {
-    this.#log("info", message, args);
+    this.#logger.log("info", message, args);
   }
 
   /** Logs warning messages. */
   warning(message: string, ...args: unknown[]) {
-    this.#log("warning", message, args);
+    this.#logger.log("warning", message, args);
   }
 
   /** Logs error messages. */
   error(message: string, ...args: unknown[]) {
-    this.#log("error", message, args);
+    this.#logger.log("error", message, args);
   }
 
   /** Logs critical messages. */
   critical(message: string, ...args: unknown[]) {
-    this.#log("critical", message, args);
-  }
-
-  // shell
-
-  async #runS(...targets: string[]) {
-    if (targets.length === 0) return false;
-
-    let changed = false;
-
-    for (const target of targets) {
-      if (await this.#run(target) !== false) changed = true;
-    }
-
-    return changed;
-  }
-
-  async #runP(...targets: string[]) {
-    if (targets.length === 0) return false;
-
-    for (const result of await Promise.all(targets.map(this.#run))) {
-      if (result !== false) return true;
-    }
-
-    return false;
+    this.#logger.log("critical", message, args);
   }
 
   #run = async (target: string) => {
@@ -149,35 +128,7 @@ export class Target {
     }
   };
 
-  // shell
-
-  async #shS(...commands: string[][]) {
-    for (const command of commands) await this.#sh(command);
-  }
-
-  async #shP(...commands: string[][]) {
-    await Promise.all(commands.map(this.#sh));
-  }
-
-  #sh = async (cmd: string[]) => {
-    const fmt = style.em("$ " + cmd.join(" "));
-    const { logs, code } = await this.#spawn(cmd, fmt);
-
-    const msg = logs !== undefined
-      ? `${outputFromString} ${fmt}\n${logs}`
-      : undefined;
-
-    if (code !== 0) {
-      if (msg !== undefined) this.#error("sh:", msg);
-      this.#error("sh:", errorString, fmt);
-      throw new ShellCommandError(fmt, code);
-    }
-
-    if (msg !== undefined) this.#info("sh:", msg);
-    this.#info("sh:", successString, fmt);
-  };
-
-  async #spawn(cmd: string[], fmt: string) {
+  #spawn = async (cmd: string[], fmt: string) => {
     this.#assertNotAborted();
 
     const mode = (this.#config.instant) ? "inherit" as const : "piped" as const;
@@ -185,7 +136,7 @@ export class Target {
     const proc = Deno.run({ cmd, stdout: mode, stderr: mode });
 
     const handleAbort = () => {
-      this.#info("sh:", abortString, fmt);
+      this.#logger.info("sh:", abortString, fmt);
       proc.kill();
     };
 
@@ -206,28 +157,7 @@ export class Target {
       this.#finishJob();
       this.#signal.signal.removeEventListener("abort", handleAbort);
     }
-  }
-
-  #debug(message: string, ...args: unknown[]) {
-    this.#log("debug", message, args, "make");
-  }
-
-  #info(message: string, ...args: unknown[]) {
-    this.#log("info", message, args, "make");
-  }
-
-  #error(message: string, ...args: unknown[]) {
-    this.#log("info", message, args, "make");
-  }
-
-  #log(
-    type: "debug" | "info" | "warning" | "error" | "critical",
-    message: string,
-    data: unknown[],
-    kind = "make:task",
-  ) {
-    return log.getLogger(kind)[type](message, this.#prefix, ...data);
-  }
+  };
 
   #startJob() {
     this.#jobs += 1;

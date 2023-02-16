@@ -41,10 +41,9 @@ export function task(
   if (alreadyRun) throw new Error(`cannot define task after running`);
 
   const prereqs = Array.isArray(actionOrPrereqs) ? actionOrPrereqs : [];
-  const action =
-    (Array.isArray(actionOrPrereqs)
-      ? (maybeAction ?? noopAsync)
-      : actionOrPrereqs);
+  const action = Array.isArray(actionOrPrereqs)
+    ? (maybeAction ?? noopAsync)
+    : actionOrPrereqs;
 
   tasks.set(name, prereqs, action);
 
