@@ -1,4 +1,4 @@
-export { BaseHandler } from "std/log/handlers.ts";
+export { BaseHandler } from "https://deno.land/std@0.177.0/log/handlers.ts";
 export {
   bgRed,
   bgWhite,
@@ -12,8 +12,8 @@ export {
   stripColor,
   white,
   yellow,
-} from "std/fmt/colors.ts";
-export { Buffer } from "std/io/buffer.ts";
-export { globToRegExp, isGlob, normalize, sep } from "std/path/mod.ts";
-export { walk } from "std/fs/walk.ts";
-export * as log from "std/log/mod.ts";
+} from "https://deno.land/std@0.177.0/fmt/colors.ts";
+export { Buffer } from "https://deno.land/std@0.177.0/io/buffer.ts";
+export { globToRegExp, isGlob, normalize, sep } from "https://deno.land/std@0.177.0/path/mod.ts";
+export { walk } from "https://deno.land/std@0.177.0/fs/walk.ts";
+export * as log from "https://deno.land/std@0.177.0/log/mod.ts";
