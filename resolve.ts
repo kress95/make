@@ -28,9 +28,7 @@ export const resolve = compose(
 const resolved = new Map<string, Action>();
 
 export async function resolveTarget(target: Target, next: Action) {
-  if (resolved.has(target.name)) {
-    throw new Error("cannot resolve already resolved targets");
-  }
+  if (resolved.has(target.name)) return false;
 
   const found = tasks.get(target.name) ?? rules.find(target.name);
 
