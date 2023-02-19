@@ -1,4 +1,4 @@
-import { Action, Target } from "./target.ts";
+import { Action, ActionReturn, Target } from "./target.ts";
 import { compose } from "./middleware.ts";
 import { exists, mtime } from "./util.ts";
 import { expand } from "./expand.ts";
@@ -26,9 +26,10 @@ export const resolve = compose(
 );
 
 const resolved = new Map<string, Action>();
+const running = new Map<string, ActionReturn>();
 
 export async function resolveTarget(target: Target, next: Action) {
-  if (resolved.has(target.name)) return false;
+  if (running.has(target.name)) return running.get(target.name);
 
   const found = tasks.get(target.name) ?? rules.find(target.name);
 
@@ -44,7 +45,9 @@ export async function resolveTarget(target: Target, next: Action) {
     Target.debug(target, "unresolved:");
   }
 
-  return await next(target);
+  const result = next(target);
+  running.set(target.name, result);
+  return await result;
 }
 
 export async function expandDeps(target: Target, next: Action) {
@@ -114,7 +117,7 @@ export async function skipCheck(target: Target, next: Action) {
     }
 
     const result = await next(target);
-    diff.update(target.name);
+    await diff.update(target.name);
     return result;
   } else {
     return await next(target);
